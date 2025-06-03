@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VITA-LM365 RHPA Training Integration | Merakey Solutions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <!-- Visualization & Content Choices:
+        - Report Intro -> Inform -> Text blocks -> N/A -> Clarity -> HTML/CSS.
+        - Vita's Vision/Benefits -> Inform -> Bulleted lists -> N/A -> Conciseness -> HTML/CSS.
+        - LM365 API Sections (Table 1) -> Organize/Inform -> Interactive Cards with Modal Details -> Click to open modal with expanded details -> User engagement, focused detail, deep dive -> JS + HTML/CSS.
+        - LM365 Integration Methods -> Compare/Inform -> Tabs -> Click to switch -> Clear comparison -> JS + HTML/CSS.
+        - LM365 Auth/Throttling -> Inform -> Text, Donut Chart (conceptual) -> N/A (static chart) -> Visual aid for technical concept -> Chart.js.
+        - Data Flow -> Inform/Organize -> HTML/CSS Diagram -> N/A (static diagram) -> Visualizing connections -> HTML/CSS.
+        - Data Fields (Table 2) -> Organize/Inform -> Interactive Table -> Filter/Sort/Expand -> Detailed exploration of data mapping -> JS + HTML/CSS.
+        - Project Roadmap Phases -> Inform/Organize -> Clickable Step-through visual / Simple Bar Chart (conceptual sequence) -> Click to show details -> Stepwise understanding of project lifecycle -> JS + HTML/CSS, Chart.js.
+        - Compliance (PIPEDA/PHIPA/RHPA, Table 3) -> Inform/Organize -> Accordions/Cards for principles -> Click to expand -> Focused understanding of complex rules -> JS + HTML/CSS.
+        - Next Steps -> Inform/Action -> Text blocks, conceptual button -> N/A -> Clarity on next actions -> HTML/CSS.
+        Justification: Chosen methods aim to break down dense report information into interactive, manageable chunks. Charts are conceptual aids, not based on live data from the report (as it's a plan). Interactions are designed to guide the user through layers of information. The new modal for API sections allows for a deeper dive into each specific area without cluttering the main view.
+    -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .nav-link {
+            @apply px-6 py-3 text-slate-600 hover:text-white hover:bg-sky-600 rounded-xl transition-all duration-200 font-medium border-2 border-slate-200 bg-white shadow-sm;
+        }
+        .nav-link.active {
+            @apply text-white bg-gradient-to-r from-sky-600 to-blue-700 font-semibold border-sky-500 shadow-lg transform scale-105;
+        }
+        .section-content {
+            display: none;
+        }
+        .section-content.active {
+            display: block;
+        }
+        .card {
+            @apply bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow;
+        }
+        .table-header {
+            @apply px-4 py-2 bg-slate-200 text-slate-700 font-semibold text-left;
+        }
+        .table-cell {
+            @apply px-4 py-2 border-b border-slate-200 text-slate-600;
+        }
+        .tab-button {
+            @apply px-4 py-2 text-slate-600 border-b-2 border-transparent hover:border-sky-500 hover:text-sky-600 transition-colors;
+        }
+        .tab-button.active {
+            @apply border-sky-500 text-sky-600 font-semibold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .accordion-header {
+            @apply w-full text-left px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 font-medium flex justify-between items-center transition-colors;
+        }
+        .accordion-content {
+            @apply mt-2 p-4 bg-white border border-slate-200 rounded-md;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-content.open {
+            max-height: 1000px; /* Adjust as needed */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px; /* Example max-width */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 350px; /* Max height */
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .step-item {
+            @apply flex items-center p-4 border border-slate-300 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors;
+        }
+        .step-number {
+            @apply flex-shrink-0 w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center font-bold mr-4;
+        }
+        .step-details {
+            @apply mt-4 p-4 bg-white border border-slate-200 rounded-lg;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.open .modal-content {
+            transform: translateY(0);
+        }
+        .modal-close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            transition: color 0.2s;
+        }
+        .modal-close-button:hover {
+            color: #0ea5e9;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-gradient-to-r from-sky-600 to-blue-700 p-3 rounded-lg">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-bold text-sky-700">VITA-LM365 RHPA Integration</h1>
+                        <p class="text-sm text-slate-600">Healthcare Training Compliance Solution by Merakey</p>
+                    </div>
+                </div>
+                <button id="mobileMenuButton" class="md:hidden text-slate-600 hover:text-sky-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </button>
+            </div>
+            <nav id="mainNav" class="pb-4 md:pb-0 md:flex md:space-x-6 hidden md:block">
+                <a href="#" class="nav-link active" data-section="overview">VITA Overview</a>
+                <a href="#" class="nav-link" data-section="lm365">RHPA Training Solution</a>
+                <a href="#" class="nav-link" data-section="dataIntegration">Monthly Reporting</a>
+                <a href="#" class="nav-link" data-section="roadmap">Implementation Plan</a>
+                <a href="#" class="nav-link" data-section="compliance">Compliance & Security</a>
+                <a href="#" class="nav-link" data-section="nextSteps">Pricing & Timeline</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <section id="overview" class="section-content active">
+            <h2 class="text-3xl font-semibold text-slate-800 mb-6">VITA Community Living Services - RHPA Training Integration</h2>
+            
+            <!-- VITA Organization Card -->
+            <div class="card mb-6 bg-gradient-to-r from-blue-50 to-sky-50 border-l-4 border-sky-500">
+                <div class="flex items-start space-x-4">
+                    <div class="bg-sky-100 p-3 rounded-lg">
+                        <svg class="w-8 h-8 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-semibold text-slate-800 mb-2">VITA Community Living Services</h3>
+                        <p class="text-slate-600 mb-2"><strong>Location:</strong> 4301 Weston Rd, Toronto, ON</p>
+                        <p class="text-slate-600 mb-2"><strong>Contact:</strong> Cindy Lopes</p>
+                        <p class="text-slate-600"><strong>Services:</strong> Community living services for adults with intellectual disabilities, residential supports, respite care, and community participation programs.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="card">
+                    <h3 class="text-2xl font-semibold text-slate-800 mb-4">RHPA Training Requirements</h3>
+                    <p class="text-lg leading-relaxed mb-4">VITA requires integration of specific RHPA (Regulated Health Professions Act) training modules into their LM365 platform to ensure regulatory compliance for healthcare-related procedures performed by their staff.</p>
+                    
+                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                            <h4 class="font-semibold text-red-800 mb-2">🫁 Respiratory Care</h4>
+                            <ul class="text-sm text-red-700 space-y-1">
+                                <li>• Inhaler Administration</li>
+                                <li>• Puffer Administration</li>
+                                <li>• Nasal Spray</li>
+                            </ul>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <h4 class="font-semibold text-blue-800 mb-2">💊 Medication Management</h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li>• Suppository Administration</li>
+                                <li>• Enema Administration</li>
+                                <li>• Diabetic Directive</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3 class="text-2xl font-semibold text-slate-800 mb-4">Business Objectives</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-xl font-semibold text-slate-700 mb-2">Operational Goals:</h4>
+                            <ul class="list-disc list-inside space-y-1 text-slate-600">
+                                <li><strong>Automated Certification Assignment:</strong> Assign RHPA training certifications to staff based on roles</li>
+                                <li><strong>Monthly Compliance Reporting:</strong> Generate automated reports for regulatory audits</li>
+                                <li><strong>Staff Transfer Support:</strong> Streamline internal transfers with comprehensive training records</li>
+                            </ul>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h4 class="text-xl font-semibold text-green-800 mb-2">Expected Benefits:</h4>
+                            <ul class="text-sm text-green-700 space-y-2">
+                                <li>✅ Reduce manual admin time by 5-10 hours/month</li>
+                                <li>✅ Eliminate compliance reporting errors</li>
+                                <li>✅ Real-time training status visibility</li>
+                                <li>✅ Automated monthly compliance reporting</li>
+                                <li>✅ Annual savings: $2,000-4,000 in admin costs</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="lm365" class="section-content">
+            <h2 class="text-3xl font-semibold text-slate-800 mb-6">RHPA Training Solution Architecture</h2>
+            <p class="text-lg mb-6 card">LM365 (Learn365) provides comprehensive API coverage for VITA's RHPA training requirements. The platform's REST API supports real-time data synchronization, automated enrollment, and compliance tracking essential for healthcare training management.</p>
+
+            <!-- Data Flow Diagram -->
+            <div class="card mb-6">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">🔄 Integration Data Flow</h3>
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+                    <div class="flex flex-col xl:flex-row items-center justify-between space-y-6 xl:space-y-0 xl:space-x-6">
+                        <!-- VITA Portal -->
+                        <div class="flex-1 text-center">
+                            <div class="bg-white p-4 rounded-xl shadow-lg border-2 border-blue-300">
+                                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="font-bold text-blue-800">VITA Home Portal</h4>
+                                <p class="text-sm text-blue-600">Existing System</p>
+                            </div>
+                        </div>
+
+                        <!-- Arrows to Merakey Service -->
+                        <div class="flex flex-col items-center space-y-1">
+                            <div class="flex items-center space-x-1">
+                                <div class="w-6 h-0.5 bg-green-500"></div>
+                                <svg class="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <span class="text-xs text-slate-600 font-medium">Employee Data</span>
+                            <div class="flex items-center space-x-1">
+                                <svg class="w-3 h-3 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+                                </svg>
+                                <div class="w-6 h-0.5 bg-purple-500"></div>
+                            </div>
+                            <span class="text-xs text-slate-600 font-medium">Reports</span>
+                        </div>
+
+                        <!-- Merakey Integration Service (NEW) -->
+                        <div class="flex-1 text-center">
+                            <div class="bg-gradient-to-br from-emerald-50 to-green-100 p-4 rounded-xl shadow-lg border-2 border-emerald-400">
+                                <div class="w-16 h-16 bg-emerald-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <svg class="w-8 h-8 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="font-bold text-emerald-800">Merakey Sync Service</h4>
+                                <p class="text-sm text-emerald-700">Our Business Logic Layer</p>
+                                <div class="mt-2 text-xs text-emerald-600">
+                                    <div>• Automated Cron Jobs</div>
+                                    <div>• RHPA Business Rules</div>
+                                    <div>• Error Handling</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Arrows to LM365 -->
+                        <div class="flex flex-col items-center space-y-1">
+                            <div class="flex items-center space-x-1">
+                                <div class="w-6 h-0.5 bg-blue-500"></div>
+                                <svg class="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <span class="text-xs text-slate-600 font-medium">API Calls</span>
+                            <div class="flex items-center space-x-1">
+                                <svg class="w-3 h-3 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+                                </svg>
+                                <div class="w-6 h-0.5 bg-orange-500"></div>
+                            </div>
+                            <span class="text-xs text-slate-600 font-medium">Webhooks</span>
+                        </div>
+
+                        <!-- LM365 API -->
+                        <div class="flex-1 text-center">
+                            <div class="bg-white p-4 rounded-xl shadow-lg border-2 border-purple-300">
+                                <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="font-bold text-purple-800">LM365 Platform</h4>
+                                <p class="text-sm text-purple-600">Training System</p>
+                            </div>
+                        </div>
+
+                        <!-- Arrows to ADP -->
+                        <div class="flex flex-col items-center space-y-1">
+                            <div class="flex items-center space-x-1">
+                                <div class="w-6 h-0.5 bg-red-500"></div>
+                                <svg class="w-3 h-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <span class="text-xs text-slate-600 font-medium">Cert Data</span>
+                        </div>
+
+                        <!-- ADP System -->
+                        <div class="flex-1 text-center">
+                            <div class="bg-white p-4 rounded-xl shadow-lg border-2 border-red-300">
+                                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="font-bold text-red-800">Monthly Reports</h4>
+                                <p class="text-sm text-red-600">Compliance Tracking</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 grid md:grid-cols-4 gap-4 text-center">
+                        <div class="bg-green-100 p-3 rounded-lg">
+                            <p class="text-sm font-medium text-green-800">Employee Sync</p>
+                            <p class="text-xs text-green-600">Roles, Departments, Status</p>
+                        </div>
+                        <div class="bg-purple-100 p-3 rounded-lg">
+                            <p class="text-sm font-medium text-purple-800">Training Events</p>
+                            <p class="text-xs text-purple-600">Completions, Certifications</p>
+                        </div>
+                        <div class="bg-orange-100 p-3 rounded-lg">
+                            <p class="text-sm font-medium text-orange-800">Compliance Reports</p>
+                            <p class="text-xs text-orange-600">Monthly RHPA Status</p>
+                        </div>
+                        <div class="bg-red-100 p-3 rounded-lg">
+                            <p class="text-sm font-medium text-red-800">Monthly Reports</p>
+                            <p class="text-xs text-red-600">RHPA Compliance Tracking</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-6">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-3">Key LM365 API Sections</h3>
+                <div id="apiSectionsContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    </div>
+            </div>
+
+            <div class="card mb-6">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">Integration Methods</h3>
+                <div class="mb-4 border-b border-slate-300">
+                    <nav class="flex space-x-1" aria-label="Tabs">
+                        <button class="tab-button active" data-tab="lm365-restApi">REST API Calls</button>
+                        <button class="tab-button" data-tab="lm365-webhooks">Webhooks</button>
+                        <button class="tab-button" data-tab="lm365-powerAutomate">Power Automate</button>
+                    </nav>
+                </div>
+                <div>
+                    <div id="lm365-restApi" class="tab-content active">
+                        <h4 class="text-xl font-semibold text-slate-700 mb-2">Direct REST API Calls</h4>
+                        <p>Primary method for programmatic data exchange (JSON responses). Supports query options like $expand, $filter, $select, $orderby, $top, $skip for efficient data retrieval and to manage load. This is crucial for performance and handling large datasets.</p>
+                    </div>
+                    <div id="lm365-webhooks" class="tab-content">
+                        <h4 class="text-xl font-semibold text-slate-700 mb-2">Webhooks</h4>
+                        <p>Subscribe to events (e.g., CourseEnrollment, CourseCompleted) for real-time, event-driven updates. LM365 sends an HTTP POST to a registered receiver (Vita's .NET backend). This push-based approach is more efficient than polling.</p>
+                    </div>
+                    <div id="lm365-powerAutomate" class="tab-content">
+                        <h4 class="text-xl font-semibold text-slate-700 mb-2">Microsoft Power Automate (Flow)</h4>
+                        <p>Low-code/no-code solution for simpler, workflow-driven integrations. Connects LM365 with hundreds of apps for automated tasks triggered by LM365 events.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="card">
+                    <h3 class="text-2xl font-semibold text-slate-800 mb-3">Authentication & Throttling</h3>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li><strong>API Key Authentication:</strong> Requires an API Key from support@zensai.com. Keys managed in LM365 Admin Center with "Read Only" or "Full Control" permissions. Use least privilege principle.</li>
+                        <li><strong>Throttling Limits:</strong> 600 API calls per connection per 60 seconds. This dictates design for bulk operations (rate limiting, retry mechanisms, queuing).</li>
+                        <li><strong>Regional Endpoints:</strong> Use regional APIs (e.g., Canada Central: `https://ca-api.365.systems`) for optimal performance and data residency.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                     <h3 class="text-2xl font-semibold text-slate-800 mb-3">API Performance & Reliability</h3>
+                    <div class="space-y-4">
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-blue-800">Rate Limit</span>
+                                <span class="text-lg font-bold text-blue-900">600 calls/min</span>
+                            </div>
+                            <div class="w-full bg-blue-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full w-1/5"></div>
+                            </div>
+                            <p class="text-xs text-blue-600 mt-1">Typical VITA usage: ~120 calls/min</p>
+                        </div>
+                        
+                        <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-green-800">Uptime SLA</span>
+                                <span class="text-lg font-bold text-green-900">99.7%</span>
+                            </div>
+                            <div class="w-full bg-green-200 rounded-full h-2">
+                                <div class="bg-green-600 h-2 rounded-full w-full"></div>
+                            </div>
+                            <p class="text-xs text-green-600 mt-1">Enterprise-grade reliability</p>
+                        </div>
+                        
+                        <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-purple-800">Response Time</span>
+                                <span class="text-lg font-bold text-purple-900">&lt; 200ms</span>
+                            </div>
+                            <div class="w-full bg-purple-200 rounded-full h-2">
+                                <div class="bg-purple-600 h-2 rounded-full w-4/5"></div>
+                            </div>
+                            <p class="text-xs text-purple-600 mt-1">Average API response time</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="dataIntegration" class="section-content">
+            <h2 class="text-3xl font-semibold text-slate-800 mb-6">Monthly Reporting & Data Integration</h2>
+            <p class="text-lg mb-6 card">This section focuses on how data will flow between LM365 and Vita's Seamless Home Portal, the critical data points for synchronization, and the role of Vita's .NET backend and Angular frontend. Effective data mapping is crucial for accuracy.</p>
+
+            <div class="card mb-6">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-3">Data Flow Dynamics</h3>
+                <p class="mb-2">Integration will involve both unidirectional (LM365 to Portal for completions/certs) and bidirectional flows (user profiles). Vita's .NET backend will be the central integration layer, making API calls, processing webhooks, and transforming data for the Angular frontend.</p>
+                <div class="p-4 border border-slate-200 rounded-lg bg-slate-50">
+                    <h4 class="text-xl font-medium text-slate-700 mb-2">Conceptual Data Flow:</h4>
+                    <div class="flex flex-col md:flex-row justify-around items-center space-y-4 md:space-y-0 md:space-x-4">
+                        <div class="text-center p-3 border border-sky-300 rounded-md bg-sky-50 w-full md:w-1/3">
+                            <span class="font-semibold text-sky-700">Vita's Seamless Portal</span><br>(.NET Backend / Angular Frontend)
+                        </div>
+                        <div class="text-3xl text-sky-500 font-mono flex flex-col items-center">
+                            <span>&lt;--&gt;</span>
+                            <span class="text-sm">API Calls / Webhooks</span>
+                        </div>
+                        <div class="text-center p-3 border border-teal-300 rounded-md bg-teal-50 w-full md:w-1/3">
+                            <span class="font-semibold text-teal-700">LM365</span><br>(Learning Management System)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-6">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-3">Critical Data Points for Synchronization</h3>
+                <ul class="list-disc list-inside space-y-1 text-slate-600 mb-4">
+                    <li>Employee/User Profiles (new hires, status changes, roles)</li>
+                    <li>Course Enrollments (automated assignments)</li>
+                    <li>Training Completion Status (real-time updates)</li>
+                    <li>Certification Records (issue/expiry dates)</li>
+                    <li>Skills/Competencies (leveraging new LM365 "Skills" endpoints)</li>
+                </ul>
+                <p>Accurate data mapping between LM365 and Vita's portal schema is vital to prevent errors and ensure data integrity.</p>
+            </div>
+            
+            <div class="card">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">Potential Data Fields for Integration (Interactive)</h3>
+                <p class="mb-4 text-sm text-slate-500">This table shows example data fields. In a real scenario, this would be highly detailed and customizable. Click headers to sort (conceptual).</p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr>
+                                <th class="table-header">Data Category</th>
+                                <th class="table-header">LM365 Field (Example)</th>
+                                <th class="table-header">Seamless Portal Field (Example)</th>
+                                <th class="table-header">Sync Direction</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataFieldsTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="roadmap" class="section-content">
+            <h2 class="text-3xl font-semibold text-slate-800 mb-6">Project Roadmap</h2>
+            <p class="text-lg mb-6 card">The integration project will follow a structured, phased approach to ensure clarity, control, and successful outcomes. Click on each phase to see more details.</p>
+            
+            <div class="grid md:grid-cols-2 gap-6 items-start">
+                <div class="space-y-4">
+                    </div>
+                <div class="card sticky top-24">
+                     <h3 class="text-2xl font-semibold text-slate-800 mb-3">Conceptual Phase Durations</h3>
+                    <p class="text-sm text-slate-500 mb-2">Illustrative sequence and overlap of project phases.</p>
+                    <div class="chart-container !max-w-full !h-[400px] md:!h-[450px]">
+                        <canvas id="roadmapChart"></canvas>
+                    </div>
+                </div>
+            </div>
+             <div id="phaseDetailsContainer" class="mt-6">
+                </div>
+        </section>
+
+        <section id="compliance" class="section-content">
+            <h2 class="text-3xl font-semibold text-slate-800 mb-6">Compliance & Security: Employee Data Protection</h2>
+            <p class="text-lg mb-6 card">Our integration handles employee personal information including training records, completion dates, and certification status. Strict adherence to PIPEDA workplace privacy requirements ensures VITA's compliance with Canadian federal privacy law.</p>
+
+            <div class="card mb-6">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">PIPEDA Workplace Privacy Requirements</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-xl font-semibold text-slate-700 mb-3">Employee Information We Handle:</h4>
+                        <ul class="list-disc list-inside space-y-2 text-slate-600">
+                            <li>Employee names, IDs, and job roles</li>
+                            <li>Training enrollment and completion records</li>
+                            <li>RHPA certification status and expiry dates</li>
+                            <li>Performance metrics and competency assessments</li>
+                            <li>ADP payroll integration data</li>
+                        </ul>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="text-xl font-semibold text-blue-800 mb-3">Privacy Safeguards:</h4>
+                        <ul class="text-sm text-blue-700 space-y-1">
+                            <li>✅ Encrypted data transmission (TLS 1.3)</li>
+                            <li>✅ Role-based access controls</li>
+                            <li>✅ Canadian data residency compliance</li>
+                            <li>✅ Audit logging and monitoring</li>
+                            <li>✅ Secure backup and retention policies</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-6">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">RHPA Training Documentation Requirements</h3>
+                <p class="text-slate-600 mb-4">For healthcare-related training under the Regulated Health Professions Act (RHPA), comprehensive documentation of training, competency assessments, and delegation records is mandatory for regulatory compliance and audit readiness.</p>
+                
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <h4 class="font-semibold text-red-800 mb-2">📋 Training Records</h4>
+                        <ul class="text-sm text-red-700 space-y-1">
+                            <li>• Course completion dates</li>
+                            <li>• Instructor certifications</li>
+                            <li>• Assessment scores</li>
+                            <li>• Renewal requirements</li>
+                        </ul>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h4 class="font-semibold text-blue-800 mb-2">🎯 Competency Tracking</h4>
+                        <ul class="text-sm text-blue-700 space-y-1">
+                            <li>• Skill demonstrations</li>
+                            <li>• Practical assessments</li>
+                            <li>• Ongoing evaluations</li>
+                            <li>• Remedial training</li>
+                        </ul>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h4 class="font-semibold text-green-800 mb-2">📊 Audit Trail</h4>
+                        <ul class="text-sm text-green-700 space-y-1">
+                            <li>• Delegation authorizations</li>
+                            <li>• Supervisor approvals</li>
+                            <li>• Compliance history</li>
+                            <li>• Regulatory reporting</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">Key Privacy Compliance Measures</h3>
+                <div id="privacyPrinciplesContainer" class="space-y-3">
+                    </div>
+            </div>
+        </section>
+
+        <section id="nextSteps" class="section-content">
+            <h2 class="text-3xl font-semibold text-slate-800 mb-6">Investment & Timeline</h2>
+            
+            <!-- Pricing Strategy Card -->
+            <div class="card mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">💰 Competitive Pricing Structure</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-sm border-2 border-green-200">
+                        <h4 class="text-xl font-semibold text-green-700 mb-2">Setup & Implementation</h4>
+                        <div class="text-4xl font-bold text-green-800 mb-3">$5,000</div>
+                        <ul class="text-sm text-slate-600 space-y-2">
+                            <li>• RHPA module integration</li>
+                            <li>• ADP connection setup</li>
+                            <li>• Compliance configuration</li>
+                            <li>• Staff training & handover</li>
+                            <li>• Complete system testing</li>
+                            <li>• Documentation & support materials</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border-2 border-blue-200">
+                        <h4 class="text-xl font-semibold text-blue-700 mb-2">Hosted Solution & Sync Service</h4>
+                        <div class="text-4xl font-bold text-blue-800 mb-3">$100</div>
+                        <div class="text-sm text-slate-500 mb-3">per month</div>
+                        <ul class="text-sm text-slate-600 space-y-2">
+                            <li>• Automated data synchronization</li>
+                            <li>• Monthly report generation</li>
+                            <li>• System monitoring & alerts</li>
+                            <li>• Software updates & patches</li>
+                            <li>• Technical support</li>
+                            <li>• Cron job management</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 class="font-semibold text-blue-800 mb-2">💡 Value Proposition</h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <ul class="text-sm text-blue-700 space-y-1">
+                            <li>• <strong>Low upfront investment:</strong> Only $5K to get started</li>
+                            <li>• <strong>Predictable monthly costs:</strong> Just $100/month all-inclusive</li>
+                            <li>• <strong>No hidden fees:</strong> Everything included in monthly rate</li>
+                        </ul>
+                        <ul class="text-sm text-blue-700 space-y-1">
+                            <li>• <strong>Quick ROI:</strong> Reduce manual admin costs within months</li>
+                            <li>• <strong>Compliance assurance:</strong> Automated RHPA reporting</li>
+                            <li>• <strong>Scalable solution:</strong> Grows with your organization</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline Card -->
+            <div class="card mb-6">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">🗓️ Implementation Timeline</h3>
+                <div class="grid md:grid-cols-4 gap-4">
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <div class="text-2xl font-bold text-blue-600 mb-2">Week 1-2</div>
+                        <h4 class="font-semibold text-blue-800 mb-2">Discovery</h4>
+                        <p class="text-sm text-blue-700">Requirements analysis, system audit, compliance review</p>
+                    </div>
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <div class="text-2xl font-bold text-purple-600 mb-2">Week 3-6</div>
+                        <h4 class="font-semibold text-purple-800 mb-2">Development</h4>
+                        <p class="text-sm text-purple-700">API integration, RHPA modules, ADP connection</p>
+                    </div>
+                    <div class="text-center p-4 bg-orange-50 rounded-lg">
+                        <div class="text-2xl font-bold text-orange-600 mb-2">Week 7-8</div>
+                        <h4 class="font-semibold text-orange-800 mb-2">Testing</h4>
+                        <p class="text-sm text-orange-700">UAT, compliance validation, performance testing</p>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600 mb-2">Week 9</div>
+                        <h4 class="font-semibold text-green-800 mb-2">Go Live</h4>
+                        <p class="text-sm text-green-700">Deployment, staff training, monitoring setup</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Steps Card -->
+            <div class="card">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">🚀 Next Steps with VITA</h3>
+                <div class="space-y-4">
+                    <p class="text-lg leading-relaxed">Ready to transform VITA's RHPA training compliance? Let's schedule a <strong>Discovery Workshop</strong> to:</p>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <ul class="list-disc list-inside space-y-2 text-slate-600">
+                            <li>Review current LM365 setup and training workflows</li>
+                            <li>Map RHPA requirements to technical specifications</li>
+                            <li>Validate ADP integration requirements</li>
+                            <li>Define reporting templates and compliance metrics</li>
+                        </ul>
+                        <ul class="list-disc list-inside space-y-2 text-slate-600">
+                            <li>Establish data privacy protocols (PIPEDA/PHIPA)</li>
+                            <li>Create detailed project timeline</li>
+                            <li>Review legal agreements and IP ownership</li>
+                            <li>Plan staff training and change management</li>
+                        </ul>
+                    </div>
+                    <div class="bg-sky-50 p-4 rounded-lg border border-sky-200 mt-4">
+                        <p class="text-center text-sky-800 font-medium">
+                            Ready to get started? Contact us to discuss your RHPA training integration needs.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gradient-to-r from-slate-800 to-slate-900 text-slate-300 py-8 mt-12">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h3 class="text-xl font-bold text-white mb-2">Merakey Technologies</h3>
+                    <p class="text-slate-400">Healthcare Technology Solutions</p>
+                </div>
+                <div class="text-center md:text-right">
+                    <p class="text-slate-400 mb-2">VITA-LM365 RHPA Integration Proposal</p>
+                    <p class="text-sm text-slate-500">&copy; <span id="currentYear"></span> Merakey Technologies. Confidential.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div id="apiDetailModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-button" id="closeModalButton">&times;</button>
+            <h3 id="modalApiName" class="text-2xl font-bold text-sky-700 mb-4"></h3>
+            <div class="space-y-4">
+                <div>
+                    <h4 class="text-xl font-semibold text-slate-800 mb-2">Functionality:</h4>
+                    <p id="modalApiFunctionality" class="text-slate-700 leading-relaxed"></p>
+                </div>
+                <div>
+                    <h4 class="text-xl font-semibold text-slate-800 mb-2">Relevance to Vita's Integration:</h4>
+                    <p id="modalApiRelevance" class="text-slate-700 leading-relaxed"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const currentYear = new Date().getFullYear();
+    document.getElementById('currentYear').textContent = currentYear;
+
+    // Navigation
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sections = document.querySelectorAll('.section-content');
+    const mainNav = document.getElementById('mainNav');
+    const mobileMenuButton = document.getElementById('mobileMenuButton');
+
+    mobileMenuButton.addEventListener('click', () => {
+        mainNav.classList.toggle('hidden');
+    });
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const sectionId = link.getAttribute('data-section');
+
+            navLinks.forEach(nav => nav.classList.remove('active'));
+            link.classList.add('active');
+
+            sections.forEach(section => {
+                if (section.id === sectionId) {
+                    section.classList.add('active');
+                } else {
+                    section.classList.remove('active');
+                }
+            });
+            if (mainNav.classList.contains('md:flex') && !mainNav.classList.contains('hidden') && window.innerWidth < 768) {
+                mainNav.classList.add('hidden');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    });
+
+    // Tab functionality
+    function setupTabs(containerSelector) {
+        const tabButtons = document.querySelectorAll(`${containerSelector} .tab-button`);
+        const tabContents = document.querySelectorAll(`${containerSelector} .tab-content`);
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.getAttribute('data-tab');
+
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                tabContents.forEach(content => {
+                    if (content.id === tabId) {
+                        content.classList.add('active');
+                    } else {
+                        content.classList.remove('active');
+                    }
+                });
+            });
+        });
+    }
+    setupTabs('#lm365'); // Setup tabs for LM365 section
+
+    // Accordion functionality
+    function setupAccordions(containerSelector) {
+        const accordionContainer = document.querySelector(containerSelector);
+        if(accordionContainer){
+            accordionContainer.addEventListener('click', function(event) {
+                const header = event.target.closest('.accordion-header');
+                if (!header) return;
+
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('.accordion-icon');
+
+                content.classList.toggle('open');
+                if (icon) icon.textContent = content.classList.contains('open') ? '−' : '+';
+                
+            });
+        }
+    }
+    
+    // Data for LM365 API Sections (Enhanced with Technical Details)
+    const apiSectionsData = [
+        {
+            name: "Users API",
+            functionality: "Complete user lifecycle management with advanced filtering and bulk operations. Supports user creation/updates with custom fields, department assignments, role management, and competency tracking. Includes GET /api/v1/users, POST /api/v1/users, PUT /api/v1/users/{id}, and DELETE /api/v1/users/{id} endpoints. Supports query parameters like $filter, $select, $expand for optimized data retrieval.",
+            relevance: "Essential for VITA's employee synchronization from their .NET backend. Enables automatic user provisioning when new staff join, role-based training assignments, and maintains accurate employee records for RHPA compliance tracking. Supports bulk operations to handle VITA's entire workforce efficiently."
+        },
+        {
+            name: "Courses API",
+            functionality: "Comprehensive course catalog management including course creation, enrollment management, and prerequisite handling. Key endpoints: GET /api/v1/courses (with filtering by type: E-Learning, Classroom, Training Plan, Webinar), POST /api/v1/courses/{id}/enrollments for bulk enrollments, and GET /api/v1/courses/{id}/completions for tracking. Supports course templates, automatic enrollment flows, and custom completion criteria.",
+            relevance: "Critical for VITA's RHPA training modules (Inhaler Administration, Puffer Administration, etc.). Automates enrollment of healthcare staff in required certifications based on their roles. Enables tracking of completion status and automatic re-enrollment for expired certifications, ensuring continuous compliance."
+        },
+        {
+            name: "Certificates API",
+            functionality: "Advanced certificate lifecycle management with expiration tracking, automatic renewal workflows, and compliance reporting. Endpoints include GET /api/v1/certificates, POST /api/v1/certificates for external certifications, and PUT /api/v1/certificates/{id}/status for status updates. Supports custom certificate templates, digital signatures, and integration with external certification bodies.",
+            relevance: "Cornerstone for VITA's RHPA compliance strategy. Tracks all healthcare certifications (Diabetic Directive, Suppository Administration, etc.) with automatic expiration alerts. Integrates with ADP for certification bonus tracking and generates audit-ready compliance reports for regulatory inspections."
+        },
+        {
+            name: "ExternalTrainings API",
+            functionality: "Specialized endpoints for importing third-party training records with validation and duplicate detection. Supports POST /api/v1/external-trainings with batch processing capabilities, automatic credit transfer calculations, and custom mapping for external training providers. Includes verification workflows and accreditation tracking.",
+            relevance: "Enables VITA to consolidate all training records into a single system, including external RHPA certifications from healthcare colleges or professional bodies. Essential for complete employee training profiles during internal transfers and comprehensive compliance auditing."
+        },
+        {
+            name: "Webhooks & Events",
+            functionality: "Real-time event notification system with configurable triggers and retry mechanisms. Supports events like CourseCompleted, CertificateExpired, UserEnrolled, and TrainingOverdue. Includes webhook verification, payload customization, and failure handling with automatic retries. Webhook URLs can include custom headers and authentication tokens.",
+            relevance: "Provides instant notifications to VITA's .NET backend when critical events occur (course completions, certification expirations). Enables real-time ADP integration for payroll adjustments and immediate compliance status updates. Eliminates delays in reporting and ensures immediate response to training milestones."
+        },
+        {
+            name: "Reports & Analytics API",
+            functionality: "Advanced reporting engine with custom report builders, scheduled report generation, and data export capabilities. Includes pre-built compliance templates, departmental analytics, and trend analysis. Supports GET /api/v1/reports with custom date ranges, filtering by user groups, and export formats (PDF, Excel, CSV). Real-time dashboard data feeds available.",
+            relevance: "Powers VITA's monthly RHPA compliance reporting requirements. Generates automated reports for regulatory audits, tracks training completion rates by department, and provides data for ADP integration. Enables proactive identification of training gaps and expiring certifications before they become compliance issues."
+        }
+    ];
+
+    const apiSectionsContainer = document.getElementById('apiSectionsContainer');
+    const apiDetailModal = document.getElementById('apiDetailModal');
+    const closeModalButton = document.getElementById('closeModalButton');
+    const modalApiName = document.getElementById('modalApiName');
+    const modalApiFunctionality = document.getElementById('modalApiFunctionality');
+    const modalApiRelevance = document.getElementById('modalApiRelevance');
+
+    apiSectionsData.forEach(section => {
+        const card = document.createElement('div');
+        card.className = 'p-4 border border-slate-200 rounded-lg hover:shadow-md transition-shadow cursor-pointer bg-white';
+        card.innerHTML = `
+            <h4 class="text-xl font-semibold text-sky-700 mb-2">${section.name}</h4>
+            <p class="text-sm text-slate-600 mb-1"><strong>Functionality:</strong> ${section.functionality.split('.')[0]}...</p>
+            <p class="text-sm text-slate-600"><strong>Relevance:</strong> ${section.relevance.split('.')[0]}...</p>
+        `;
+        card.addEventListener('click', () => {
+            modalApiName.textContent = section.name;
+            modalApiFunctionality.textContent = section.functionality;
+            modalApiRelevance.textContent = section.relevance;
+            apiDetailModal.classList.add('open');
+        });
+        apiSectionsContainer.appendChild(card);
+    });
+
+    closeModalButton.addEventListener('click', () => {
+        apiDetailModal.classList.remove('open');
+    });
+
+    apiDetailModal.addEventListener('click', (e) => {
+        if (e.target === apiDetailModal) {
+            apiDetailModal.classList.remove('open');
+        }
+    });
+    
+    // Data for Potential Data Fields Table
+    const dataFieldsData = [
+        { category: "User Profile", lm365: "LoginName, UserId, Email", portal: "EmployeeID, Email, JobTitle", direction: "Bi-directional" },
+        { category: "Training Enrollment", lm365: "CourseId, EnrollmentDate", portal: "TrainingCourseID, EnrollmentDate", direction: "Bi-directional" },
+        { category: "Completion Status", lm365: "CourseId, CompletionDate, Score", portal: "TrainingCourseID, DateCompleted, Result", direction: "LM365 to Portal (Webhook)" },
+        { category: "Certification", lm365: "CertificateId, IssueDate, ExpiryDate", portal: "CertificationID, IssueDate, ExpirationDate", direction: "LM365 to Portal" },
+        { category: "Skills/Competencies", lm365: "SkillName, SkillLevel", portal: "EmployeeCompetency, ProficiencyLevel", direction: "Bi-directional" },
+        { category: "External Training", lm365: "Title, UserId, CompletionDate", portal: "ExternalTrainingID, EmployeeID, CompletionDate", direction: "Portal to LM365" }
+    ];
+
+    const dataFieldsTableBody = document.getElementById('dataFieldsTableBody');
+    dataFieldsData.forEach(field => {
+        const row = dataFieldsTableBody.insertRow();
+        row.innerHTML = `
+            <td class="table-cell">${field.category}</td>
+            <td class="table-cell">${field.lm365}</td>
+            <td class="table-cell">${field.portal}</td>
+            <td class="table-cell">${field.direction}</td>
+        `;
+    });
+
+    // Data for Project Roadmap
+    const roadmapPhases = [
+        {
+            id: 1, name: "Discovery & Requirements Gathering",
+            purpose: "Gain deep understanding of Vita's needs, architecture, and desired outcomes.",
+            activities: "Analyze Seamless Portal, identify data points, define data flow, understand compliance (PIPEDA/PHIPA/RHPA), define KPIs, obtain LM365 API Key."
+        },
+        {
+            id: 2, name: "Technical Design & Setup",
+            purpose: "Translate requirements into a detailed technical blueprint.",
+            activities: "Architect .NET integration layer (API clients, webhooks, transformation), design error handling/logging, setup environments, plan API calls (throttling), plan security measures."
+        },
+        {
+            id: 3, name: "Development & Implementation",
+            purpose: "Build the integration components based on the design.",
+            activities: "Code .NET logic (consume LM365 APIs, implement webhooks), develop data sync jobs, adjust Angular frontend, implement data validation/transformation."
+        },
+        {
+            id: 4, name: "Testing & Validation",
+            purpose: "Rigorously test for functionality, performance, security, and data integrity.",
+            activities: "Unit, integration, end-to-end testing, performance/load testing (API limits), security testing (PIPEDA/PHIPA), User Acceptance Testing (UAT), create documentation."
+        },
+        {
+            id: 5, name: "Deployment & Monitoring",
+            purpose: "Successfully deploy to production and establish ongoing support.",
+            activities: "Phased deployment, continuous monitoring (API health, sync status, errors), provide training, define support/maintenance plan."
+        }
+    ];
+
+    const phasesContainer = document.querySelector('#roadmap .space-y-4');
+    const phaseDetailsContainer = document.getElementById('phaseDetailsContainer');
+    let activePhaseItem = null;
+
+    roadmapPhases.forEach(phase => {
+        const phaseItem = document.createElement('div');
+        phaseItem.className = 'step-item';
+        phaseItem.setAttribute('data-phase-id', phase.id);
+        phaseItem.innerHTML = `
+            <div class="step-number">${phase.id}</div>
+            <div class="font-medium text-slate-700">${phase.name}</div>
+        `;
+        phasesContainer.appendChild(phaseItem);
+
+        phaseItem.addEventListener('click', () => {
+            if (activePhaseItem) {
+                activePhaseItem.classList.remove('bg-sky-100', 'border-sky-500');
+            }
+            phaseItem.classList.add('bg-sky-100', 'border-sky-500');
+            activePhaseItem = phaseItem;
+
+            phaseDetailsContainer.innerHTML = `
+                <div class="card step-details">
+                    <h4 class="text-xl font-semibold text-sky-700 mb-2">${phase.name}</h4>
+                    <p class="text-slate-600 mb-1"><strong>Purpose:</strong> ${phase.purpose}</p>
+                    <p class="text-slate-600"><strong>Key Activities:</strong> ${phase.activities}</p>
+                </div>
+            `;
+        });
+    });
+     if (phasesContainer.firstChild && phasesContainer.firstChild.click) {
+        phasesContainer.firstChild.click(); // Select first phase by default
+    }
+
+
+    // Data for Privacy Compliance Principles
+    const privacyPrinciples = [
+        { name: "Informed Consent", pipeda: "Mandatory for collection, use, disclosure in commercial activities. Right to withdraw.", phipa: "Mandatory for PHI. Must be 'informed' and 'valid'. Right to withdraw.", implication: "Design clear consent capture in Vita's portal. Respect preferences. Document consent." },
+        { name: "Data Security Safeguards", pipeda: "Implement safeguards appropriate to sensitivity.", phipa: "Implement 'comprehensive safeguards' for PHI.", implication: "Encryption, access controls, security audits." },
+        { name: "Data Residency", pipeda: "No specific Canada storage rule, but adequate protection.", phipa: "Generally requires PHI storage in Canada.", implication: "Verify LM365 data centers (e.g., Canada Central). Comply if processing outside Canada." },
+        { name: "Breach Notification", pipeda: "Timely notification if significant risk of harm.", phipa: "Timely notification if significant risk of harm.", implication: "Develop breach response plan. Ensure logging/monitoring for detection." },
+        { name: "Data Retention & Disposal", pipeda: "Retain only as long as necessary.", phipa: "Retain accurate records as long as needed for recourse. Secure disposal.", implication: "Establish clear retention policies. Secure disposal procedures." },
+        { name: "Business Associate Agreements (BAAs)", pipeda: "Good practice for third parties.", phipa: "Required for Health Information Custodians (HICs) sharing PHI.", implication: "If Vita is HIC, BAA needed for integrators/service providers." }
+    ];
+
+    const privacyContainer = document.getElementById('privacyPrinciplesContainer');
+    privacyPrinciples.forEach(principle => {
+        const accordionItem = document.createElement('div');
+        accordionItem.innerHTML = `
+            <button type="button" class="accordion-header">
+                <span>${principle.name}</span>
+                <span class="accordion-icon text-sky-600 text-xl font-bold">+</span>
+            </button>
+            <div class="accordion-content">
+                <p class="mb-2"><strong>PIPEDA:</strong> ${principle.pipeda}</p>
+                <p class="mb-2"><strong>PHIPA:</strong> ${principle.phipa}</p>
+                <p><strong>Implication for Integration:</strong> ${principle.implication}</p>
+            </div>
+        `;
+        privacyContainer.appendChild(accordionItem);
+    });
+    setupAccordions('#privacyPrinciplesContainer');
+
+
+    // Charts
+    // Throttling chart removed - replaced with progress bars in HTML
+
+    // 2. Roadmap Chart (Conceptual Horizontal Bar for sequence/overlap)
+    const roadmapCtx = document.getElementById('roadmapChart')?.getContext('2d');
+    if (roadmapCtx) {
+        new Chart(roadmapCtx, {
+            type: 'bar',
+            data: {
+                labels: roadmapPhases.map(p => `Phase ${p.id}: ${p.name.substring(0,25)}...`), // Shorten labels
+                datasets: [{
+                    label: 'Conceptual Duration/Effort',
+                    data: [2, 3, 4, 3, 2], // Example conceptual values
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.5)',
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 206, 86, 0.5)',
+                        'rgba(75, 192, 192, 0.5)',
+                        'rgba(153, 102, 255, 0.5)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y', // Horizontal bar chart
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Conceptual Units (e.g., Weeks/Effort)' }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false, // Ensure all labels are shown
+                            callback: function(value, index, values) {
+                                const label = this.getLabelForValue(value);
+                                if (label.length > 20) { // Max length for labels
+                                     const lines = [];
+                                     const words = label.split(' ');
+                                     let currentLine = '';
+                                     words.forEach(word => {
+                                         if ((currentLine + word).length > 16) { // Chars per line
+                                             lines.push(currentLine.trim());
+                                             currentLine = '';
+                                         }
+                                         currentLine += word + ' ';
+                                     });
+                                     lines.push(currentLine.trim());
+                                     return lines;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Phase ${context.dataset.data[context.dataIndex]} Units`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>
