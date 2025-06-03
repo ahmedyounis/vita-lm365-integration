@@ -49,7 +49,13 @@
       "WebFetch(domain:helpcenter.zensai.com)",
       "WebFetch(domain:api.365.systems)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh api:*)"
     ],
     "deny": []
   },
